@@ -1,6 +1,7 @@
 pico-8 cartridge // http://www.pico-8.com
 version 41
 __lua__
+#include include/collision.lua
 
 scene = 0
 
@@ -10,15 +11,15 @@ ball = {}
 scenes = {}
 ss = peek(0x5f57)
 
-b_c = 10
-b_r = 2
+b_c = 7
+b_r = 3
 
 -- Engine Callbacks
 
 function _init()
   setup_scenes()
 
-  b_w = ss / b_c * 0.75
+  local b_w = ss / b_c * 0.75
 
   setup_blocks(b_c, b_r, b_w, b_w / 3)
   setup_paddle()
@@ -50,13 +51,19 @@ function setup_scenes()
 end
 
 function setup_blocks(col, row, w, h)
-  for j = 0, row - 1, 1 do
-    for i = 0, col - 1, 1 do
-      a = i + j * row
-      blocks[a] = {
-        x = i, y = j, w = w, h = h, col = color(8)
+  cls(0)
+  local m_x = 20
+  local m_y = 10
+
+  m_x = 5
+  w_m = ss / b_c - m_x
+  for  y = 0, row - 1  do
+    for  x = 0, col -1 do
+      local i = x + y * col
+      blocks[i] = {
+        x = w_m + w_m * x, y = m_y * y, w = w - m_x, h = h, col = color(i % 14 + 1), a = true
       }
-      print(a .. ": " .. blocks[a].x .. " " .. blocks[a].y)
+      print(i .. ": " .. blocks[i].x .. " " .. blocks[i].y)
     end
   end
 end
@@ -71,11 +78,11 @@ function setup_paddle()
 end
 
 function setup_ball(size)
-  ball.x = size / 2
-  ball.y = size / 2
+  ball.x = paddle.x + 12
+  ball.y = paddle.y - 10
   ball.r = 2
   ball.v_x = 1
-  ball.v_y = 1
+  ball.v_y = -1
   ball.col = color(12)
 end
 
@@ -93,6 +100,23 @@ end
 function game_update()
   update_paddle()
   update_ball()
+
+  local bb = box(ball.x - ball.r, ball.y - ball.r, ball.x + ball.r, ball.y + ball.r)
+  local pb = box(paddle.x, paddle.y, paddle.x + 16, paddle.y + 8)
+
+  if coll(bb, pb) then
+    ball.v_y = -ball.v_y
+  end
+
+  for _, b in pairs(blocks) do
+    local bbb = box(b.x, b.y, b.x + b.w, b.y + b.h)
+
+    if coll(bb, pb) then
+      ball.v_y = -ball.v_y
+      b.a = false
+    end
+  end
+
 end
 
 function update_paddle()
@@ -114,26 +138,20 @@ end
 function game_draw()
   cls(0)
 
-  -- local m_x = ss / b_c
-  -- local m_x2 = 4
-
-  -- local m_y = ss / b_r * 0.4
 
   -- Draw blocks
-  for i = 0, b_c * b_r - 1, 1 do
+  for i = 0, #blocks, 1 do
     local b = blocks[i]
-    print(b.x .. " " .. b.y)
-    -- x = b.x * 10
-    -- y = b.y * 10
-    -- rectfill(x, y, x + b.w, y + b.h, b.col)
-    -- print(b.x + b.y * b_r, x, y, 7)
+    if b.a == true then
+      rectfill(b.x, b.y, b.x + b.w, b.y + b.h, b.col)
+    end
   end
 
-  -- -- Draw player
-  -- spr(1, paddle.x, paddle.y, 3, 1)
+  -- Draw player
+  spr(1, paddle.x, paddle.y, 3, 1)
 
-  -- -- Draw ball
-  -- circfill(ball.x, ball.y, ball.r, ball.col)
+  -- Draw ball
+  circfill(ball.x, ball.y, ball.r, ball.col)
 end
 
 __gfx__
