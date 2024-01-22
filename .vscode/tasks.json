@@ -17,6 +17,24 @@
                 "cwd": "${env:PICO8}"
             },
             "problemMatcher": []
+        },
+
+        {
+            "label": "Launch Cart",
+            "type": "process",
+            "command": "pico8.exe",
+            "args": [
+                "-root_path",
+                "${workspaceFolder}",
+                "-windowed",
+                "1",
+                "-run",
+                "${relativeFile}"
+            ],
+            "options": {
+                "cwd": "${env:PICO8}"
+            },
+            "problemMatcher": []
         }
     ]
 }
