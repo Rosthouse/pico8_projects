@@ -2,6 +2,7 @@ pico-8 cartridge // http://www.pico-8.com
 version 41
 __lua__
 #include include/collision.lua
+#include include/fsm.lua
 
 blk = 33
 
@@ -25,35 +26,30 @@ b_r = 3
 function _init()
   setup_scenes()
 
-  local b_w = ss / b_c * 0.75
-
-  setup_blocks(b_c, b_r, b_w, b_w / 3)
-  setup_paddle()
-  setup_ball(ss)
 end
 
 function _update()
-  scenes[scene].update()
+  FSM.states[FSM.curr].update()
 end
 
 function _draw()
-  scenes[scene].draw()
+  FSM.states[FSM.curr].draw()
 end
 
 -- Initialization
 
 function setup_scenes()
-  scene = 0
+  FSM:add_state(nil, start_update, start_draw)
+  FSM:add_state(init_game, game_update, game_draw)
 
-  scenes[0] = {
-    update = start_update,
-    draw = start_draw
-  }
+end
 
-  scenes[1] = {
-    update = game_update,
-    draw = game_draw
-  }
+function init_game()
+  local b_w = ss / b_c * 0.75
+
+  setup_blocks(b_c, b_r, b_w, b_w / 3)
+  setup_paddle()
+  setup_ball(ss)
 end
 
 function setup_blocks(col, row, w, h)
@@ -99,7 +95,7 @@ function start_update()
   end
   
   if btnp(❎) and sel == 0 then
-  	scene = 1
+  	FSM:change_state(2)
   end
 end
 
@@ -163,7 +159,7 @@ function update_ball()
   if ball.x < 0 then ball.v_x *= -1 end
   if ball.x > ss then ball.v_x *= -1 end
   if ball.y < 0 then ball.v_y *= -1 end
-  if ball.y > ss then ball.y = ss / 2 end
+  if ball.y > ss then FSM:change_state(1) end
 end
 
 function  update_powerups()
