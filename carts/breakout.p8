@@ -1,12 +1,14 @@
 pico-8 cartridge // http://www.pico-8.com
 version 41
 __lua__
+-- Breakout
+-- by Rosthouse
 #include include/collision.lua
 #include include/fsm.lua
 
 blk = 33
 
-pwr_s = 4
+pwr_s = 2
 scene = 0
 
 blocks = {}
@@ -20,30 +22,29 @@ ss = peek(0x5f57)
 sel = 0
 b_c = 5
 b_r = 3
+sp_r = 0.9
+
+scr = 0
 
 -- Engine Callbacks
-
 function _init()
-  setup_scenes()
+		cartdata("ch_rosthouse_breakoutplus")
 
+  fsm:add("start", nil, start_update, start_draw, nil)
+  fsm:add("game", init_game, game_update, game_draw)
+  fsm:add("score", init_score, score_update, score_draw, exit_score)
+  fsm:next("start")
 end
 
 function _update()
-  FSM.states[FSM.curr].update()
+  fsm:current().update()
 end
 
 function _draw()
-  FSM.states[FSM.curr].draw()
+  fsm:current().draw()
 end
 
 -- Initialization
-
-function setup_scenes()
-  FSM:add_state(nil, start_update, start_draw)
-  FSM:add_state(init_game, game_update, game_draw)
-
-end
-
 function init_game()
   local b_w = ss / b_c * 0.75
 
@@ -74,7 +75,7 @@ function setup_paddle()
   paddle.y = 128 - 10 - paddle.ys / 2
   paddle.w = 24
   paddle.h = 8
-  paddle.speed = 1
+  paddle.sp = 1
 end
 
 function setup_ball(size)
@@ -84,18 +85,17 @@ function setup_ball(size)
   ball.v_x = 1
   ball.v_y = -0.5
   ball.col = color(12)
-  ball.speed = 1
+  ball.sp = 1
 end
 
 -- Start Scene
-
 function start_update()
   if btnp(2) or btnp(3) then
   	sel = (sel+1)%2
   end
   
   if btnp(❎) and sel == 0 then
-  	FSM:change_state(2)
+  	fsm:next("game")
   end
 end
 
@@ -109,7 +109,6 @@ function start_draw()
 end
 
 -- Game Scene
-
 function game_update()
   update_paddle()
   update_powerups()
@@ -127,6 +126,16 @@ function game_update()
     end
   end
 
+  for _, p in pairs(powerups) do
+    if p.a == true then
+      local pwb = rbox(p.x, p.y, 8, 8)
+      if coll(pb, pwb) then
+        paddle.sp *= 1.1
+        del(powerups, p)
+      end
+    end
+  end
+
   for i = 0, #blocks, 1 do
     local b = blocks[i]
     if b.a == true then
@@ -135,34 +144,39 @@ function game_update()
       if coll(bbb, bb) then
         ball.v_y *= -1
         b.a = false
-        ball.speed += 0.1
-        if rnd() then
+        ball.sp += 0.1
+        scr += 1
+        if rnd() >= sp_r then
+          sp_r = 0.9
           spawn_powerup(i)
+        else
+          sp_r -= 0.1
         end
+
       end
     end
   end
 end
 
 function update_paddle()
-  if btn(0) then paddle.x -= paddle.speed end
-  if btn(1) then paddle.x += paddle.speed end
+  if btn(0) then paddle.x -= paddle.sp end
+  if btn(1) then paddle.x += paddle.sp end
 
   if paddle.x < 0 then paddle.x = 0 end
   if paddle.x > 128 - 24 then paddle.x = 128 - 24 end
 end
 
 function update_ball()
-  ball.x = ball.x + ball.v_x * ball.speed
-  ball.y = ball.y + ball.v_y * ball.speed
+  ball.x = ball.x + ball.v_x * ball.sp
+  ball.y = ball.y + ball.v_y * ball.sp
 
   if ball.x < 0 then ball.v_x *= -1 end
   if ball.x > ss then ball.v_x *= -1 end
   if ball.y < 0 then ball.v_y *= -1 end
-  if ball.y > ss then FSM:change_state(1) end
+  if ball.y > ss then fsm:next("score") end
 end
 
-function  update_powerups()
+function update_powerups()
   for _, p in pairs(powerups) do
     if p.a == true then
       p.y += pwr_s
@@ -208,6 +222,61 @@ end
 function spawn_powerup(bi)
   b = blocks[bi]
   add(powerups, {x=b.x +16, y = b.y,sp=49, t=0, a=true})
+end
+
+-- score scene
+scr_t = {}
+ch_i = 100
+function init_score()
+  scr_t = {}
+  for i = 1, 3, 1 do
+    local ind = i * 4
+    add(scr_t, {
+      name=chr(dget(i+1), dget(i+2), dget(i+3)),
+      score = dget(i)
+    })
+  end
+
+  for i = 1, 3, 1 do
+    local curr_scr = scr_t[i]
+    if curr_scr.score < scr then
+      ch_i = i
+      add(scr_t, {name="aaa", score=scr}, i)
+      break
+    end
+  end
+  if #scr_t > 3 then
+     deli(scr_t, 4)
+  end
+end
+
+char_i = 0
+function score_update()
+  if ch_i <= 3 then
+    local s_e = scr_t[ch_i]
+  end
+
+  if btnp(❎) then
+    fsm:next("start")
+  end
+end
+
+function score_draw()
+  cls()
+  for i = 2, 3, 1 do
+    print(i .. ". " .. scr_t[i].name .. ": " .. scr_t[i].score, ss/2 - 24, ss/2 + i * 8 - 32)
+  end
+end
+
+function exit_score()
+  for i =1, 3, 1 do
+    local c_s = scr_t[i]
+    dset(i * 4, c_s.score)
+    for j = 1, 3, 1 do
+      dset(i * 4 + j, ord(c_s.name, j))
+    end
+  end
+  scr = 0
 end
 
 __gfx__
