@@ -30,8 +30,8 @@ scr = 0
 function _init()
 		cartdata("ch_rosthouse_breakoutplus")
 
-  fsm:add("start", nil, start_update, start_draw, nil)
-  fsm:add("game", init_game, game_update, game_draw)
+  fsm:add("start",  start_update, start_draw)
+  fsm:add("game", game_update, game_draw, init_game)
   fsm:add("score", init_score, score_update, score_draw, exit_score)
   fsm:next("start")
 end
