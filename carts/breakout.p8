@@ -5,11 +5,16 @@ __lua__
 -- by Rosthouse
 #include include/collision.lua
 #include include/fsm.lua
+#include include/particles.lua
+#include include/table.lua
+#include include/camera.lua
 
 blk = 33
 
 pwr_s = 2
 scene = 0
+
+intensity = 2
 
 blocks = {}
 paddle = {}
@@ -32,7 +37,7 @@ function _init()
 
   fsm:add("start",  start_update, start_draw)
   fsm:add("game", game_update, game_draw, init_game)
-  fsm:add("score", init_score, score_update, score_draw, exit_score)
+  fsm:add("score",  score_update, score_draw, init_score, exit_score)
   fsm:next("start")
 end
 
@@ -91,12 +96,16 @@ end
 -- Start Scene
 function start_update()
   if btnp(2) or btnp(3) then
-  	sel = (sel+1)%2
+  	sel = (sel+1)%3
     sfx(1)
   end
   
   if btnp(❎) and sel == 0 then
   	fsm:next("game")
+  end
+
+  if btnp(❎) and sel == 1 then
+  	fsm:next("score")
   end
 end
 
@@ -106,7 +115,8 @@ function start_draw()
   spr(5, 35, 20, 10, 10)
   print("➡️", ss / 2 - 25, ss/2+8*sel)
   print("start", ss/2 - 15, ss/2)
-  print("options", ss / 2 - 15, ss/2 + 8)
+  print("high score", ss/2 - 15, ss / 2 + 8)
+  print("options", ss / 2 - 15, ss/2 + 16)
 end
 
 -- Game Scene
@@ -114,13 +124,16 @@ function game_update()
   update_paddle()
   update_powerups()
   update_ball()
+  part:update()
 
   local bb = cbox(ball.x, ball.y, ball.r) 
   local pb = rbox(paddle.x, paddle.y, 16, 8)
 
+  -- handle collisions
   if coll(bb, pb) then
     ball.v_y = -1
     sfx(0)
+    shk_add(intensity)
     if ball.x > (paddle.x + paddle.w / 2) then
       ball.v_x = 1
     else
@@ -145,6 +158,7 @@ function game_update()
       local bbb = rbox(b.x, b.y, b.w, b.h)
 
       if coll(bbb, bb) then
+        shk_add(intensity)
         ball.v_y *= -1
         b.a = false
         ball.sp += 0.1
@@ -178,6 +192,11 @@ function update_ball()
   if ball.x > ss then ball.v_x *= -1 end
   if ball.y < 0 then ball.v_y *= -1 end
   if ball.y > ss then fsm:next("score") end
+
+  if rnd() > 0.8 then
+    part:spw(ball.x, ball.y, rnd(), ball.sp/2, 15, 10)
+  end
+
 end
 
 function update_powerups()
@@ -194,7 +213,7 @@ end
 
 function game_draw()
   cls(0)
-  
+  part:draw()
   -- Draw blocks
   for i = 0, #blocks, 1 do
     local b = blocks[i]
@@ -210,17 +229,17 @@ function game_draw()
       spr(p.sp,p.x,p.y)
     end
   end
-
-
   -- Draw player
   local pb = rbox(paddle.x, paddle.y, paddle.w, paddle.h)
-  rectfill(pb.x0, pb.y0, pb.x1, pb.y1, color(9))
+  -- rectfill(pb.x0, pb.y0, pb.x1, pb.y1, 9)
   spr(1, paddle.x, paddle.y, 3, 1)
 
   -- Draw ball
   local bb = cbox(ball.x, ball.y, ball.r)
-  rectfill(bb.x0, bb.y0, bb.x1, bb.y1, color(10))
-  circfill(ball.x, ball.y, ball.r, ball.col)
+  -- rectfill(bb.x0, bb.y0, bb.x1, bb.y1, 10)
+  circfill(ball.x, ball.y, ball.r, 9)
+
+  shake()
 end
 
 function spawn_powerup(bi)
@@ -230,57 +249,82 @@ end
 
 -- score scene
 scr_t = {}
-ch_i = 100
+scr_i = 0
+ed=0
 function init_score()
   scr_t = {}
-  for i = 1, 3, 1 do
-    local ind = i * 4
-    add(scr_t, {
-      name=chr(dget(i+1), dget(i+2), dget(i+3)),
-      score = dget(i)
-    })
-  end
-
-  for i = 1, 3, 1 do
-    local curr_scr = scr_t[i]
-    if curr_scr.score < scr then
-      ch_i = i
-      add(scr_t, {name="aaa", score=scr}, i)
-      break
+  scr_i = 0
+  ed=0
+  if dget(0) == 0 then
+    -- initialize scoring system
+    for i = 1, 5, 1 do
+      write_score(i, i * 100, "aaa")
     end
   end
-  if #scr_t > 3 then
-     deli(scr_t, 4)
+
+  for i = 1, 5, 1 do
+    add(scr_t, read_score(i))
+  end
+
+  if scr > 0 then
+    for i = 1, 5, 1 do
+      if scr > scr_t[i].score then
+        scr_i = i
+        ed = 1
+        insert(scr_t, {name="aaa",score=scr}, i)
+        return
+      end
+    end
   end
 end
 
-char_i = 0
+function read_score(i)
+  return {
+    name=chr(dget(i*4+1), dget(i*4+2), dget(i*4+3)),
+    score = dget(i)
+  }
+end
+
+function write_score(i, n, v)
+  dset(i * 4, v)
+  dset(i * 4 + 1, ord(v, 1))
+  dset(i * 4 + 2, ord(v, 2))
+  dset(i * 4 + 3, ord(v, 3))
+end
+
 function score_update()
-  if ch_i <= 3 then
-    local s_e = scr_t[ch_i]
+
+  if scr_i == 0 then
+    if btnp(❎) then
+      fsm:next("start")
+      return
+    end
   end
 
-  if btnp(❎) then
-    fsm:next("start")
+  if scr_i <= 3 then
+    local s_e = scr_t[scr_i]
   end
 end
 
 function score_draw()
   cls()
-  for i = 2, 3, 1 do
-    print(i .. ". " .. scr_t[i].name .. ": " .. scr_t[i].score, ss/2 - 24, ss/2 + i * 8 - 32)
+  for i = 1, 5, 1 do
+    v=scr_t[i].score
+    n=scr_t[i].name
+    -- check if we are on a line to edit
+    if ed == i then
+      n = sub(n, 1, i) .. "\#2" sub(n, i, #n)
+    end
+
+    -- if yes, anotate the current character with the corresponding background
+    print(i .. ". " .. n .. ": ".. scr_t[i].score, ss/2 - 24, ss/2 + i * 8 - 32)
   end
 end
 
 function exit_score()
-  for i =1, 3, 1 do
-    local c_s = scr_t[i]
-    dset(i * 4, c_s.score)
-    for j = 1, 3, 1 do
-      dset(i * 4 + j, ord(c_s.name, j))
-    end
+  for i=1,5,1 do
+    write_score(i,scr_t[i].name, scr_t[i].score)
   end
-  scr = 0
 end
 
 __gfx__
