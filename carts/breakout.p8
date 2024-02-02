@@ -33,11 +33,17 @@ scr = 0
 
 -- Engine Callbacks
 function _init()
-		cartdata("ch_rosthouse_breakoutplus")
+	cartdata("ch_rosthouse_breakoutplus")
 
-  fsm:add("start",  start_update, start_draw)
+  if dget(0) == 0 then
+    dset(0,1)
+    reset_score()
+  end
+
+  fsm:add("start",  start_update, start_draw, start_init)
   fsm:add("game", game_update, game_draw, init_game)
-  fsm:add("score",  score_update, score_draw, init_score, exit_score)
+  fsm:add("score",  score_update, score_draw, score_init, score_exit)
+  fsm:add("options", options_update, options_draw, options_init)
   fsm:next("start")
 end
 
@@ -57,6 +63,7 @@ function init_game()
   setup_paddle()
   setup_ball(ss)
 end
+
 
 function setup_blocks(col, row, w, h)
   cls(0)
@@ -93,19 +100,54 @@ function setup_ball(size)
   ball.sp = 1
 end
 
--- Start Scene
+-- general functionality
+function read_score(i)
+  return {
+    score = dget(i*4),
+    name = chr(
+      dget(i*4+1), 
+      dget(i*4+2), 
+      dget(i*4+3)
+    )
+  }
+end
+
+function write_score(i, n, v)
+  dset(i*4, v)
+  dset(i*4+1, ord(n, 1))
+  dset(i*4+2, ord(n, 2))
+  dset(i*4+3, ord(n, 3))
+end
+
+function reset_score()
+  for i = 1, 5, 1 do
+    write_score(i, "aaa",  (6 - i) * 10)
+  end
+end
+
+-- scenes
+-- start scene
+function start_init()
+  sel=0
+end
+
 function start_update()
-  if btnp(2) or btnp(3) then
+  if btnp(2) then
+    sel = (sel-1)%3
+    sfx(1)
+  elseif btnp(2) or btnp(3) then
   	sel = (sel+1)%3
     sfx(1)
   end
   
-  if btnp(❎) and sel == 0 then
-  	fsm:next("game")
-  end
-
-  if btnp(❎) and sel == 1 then
-  	fsm:next("score")
+  if btnp(❎) then
+    if sel == 0 then
+     	fsm:next("game")
+    elseif sel == 1 then
+      fsm:next("score")
+    elseif sel == 2 then
+      fsm:next("options")
+    end
   end
 end
 
@@ -119,7 +161,7 @@ function start_draw()
   print("options", ss / 2 - 15, ss/2 + 16)
 end
 
--- Game Scene
+-- game scene
 function game_update()
   update_paddle()
   update_powerups()
@@ -133,7 +175,7 @@ function game_update()
   if coll(bb, pb) then
     ball.v_y = -1
     sfx(0)
-    shk_add(intensity)
+    shk_set(intensity)
     if ball.x > (paddle.x + paddle.w / 2) then
       ball.v_x = 1
     else
@@ -158,7 +200,7 @@ function game_update()
       local bbb = rbox(b.x, b.y, b.w, b.h)
 
       if coll(bbb, bb) then
-        shk_add(intensity)
+        shk_set(intensity)
         ball.v_y *= -1
         b.a = false
         ball.sp += 0.1
@@ -248,21 +290,12 @@ function spawn_powerup(bi)
 end
 
 -- score scene
-scr_t = {}
-scr_i = 0
-ed=0
-function init_score()
+function score_init()
   scr_t = {}
   scr_i = 0
   ed=0
-  if dget(0) == 0 then
-    -- initialize scoring system
-    for i = 1, 5, 1 do
-      write_score(i, i * 100, "aaa")
-    end
-  end
 
-  for i = 1, 5, 1 do
+  for i=1,5,1 do
     add(scr_t, read_score(i))
   end
 
@@ -278,20 +311,6 @@ function init_score()
   end
 end
 
-function read_score(i)
-  return {
-    name=chr(dget(i*4+1), dget(i*4+2), dget(i*4+3)),
-    score = dget(i)
-  }
-end
-
-function write_score(i, n, v)
-  dset(i * 4, v)
-  dset(i * 4 + 1, ord(v, 1))
-  dset(i * 4 + 2, ord(v, 2))
-  dset(i * 4 + 3, ord(v, 3))
-end
-
 function score_update()
 
   if scr_i == 0 then
@@ -301,7 +320,10 @@ function score_update()
     end
   end
 
-  if scr_i <= 3 then
+  if scr_i > 0 then
+    if btnp(❎) then
+      scr_i -= 1 
+    end
     local s_e = scr_t[scr_i]
   end
 end
@@ -313,7 +335,7 @@ function score_draw()
     n=scr_t[i].name
     -- check if we are on a line to edit
     if ed == i then
-      n = sub(n, 1, i) .. "\#2" sub(n, i, #n)
+      n = sub(n, 1, i) .. "\#2" .. sub(n, i+1, #n)
     end
 
     -- if yes, anotate the current character with the corresponding background
@@ -321,10 +343,42 @@ function score_draw()
   end
 end
 
-function exit_score()
+function score_exit()
   for i=1,5,1 do
     write_score(i,scr_t[i].name, scr_t[i].score)
   end
+end
+
+-- options screen
+function options_init()
+  sel=0
+end
+
+function options_update()
+
+  if btnp(2) then
+    sel = (sel-1)%2
+    sfx(1)
+  elseif btnp(3) then
+  	sel = (sel+1)%2
+    sfx(1)
+  end
+  
+  if btnp(❎) then 
+    if sel == 0 then
+      reset_score()
+      sfx(3)
+    else
+      fsm:next("start")
+    end
+  end
+end
+
+function options_draw()
+  cls(0)
+  print("➡️", ss / 2 - 25, ss/2+8*sel)
+  print("clear score", ss/2 - 15, ss/2)
+  print("back", ss/2 - 15, ss / 2 + 8)
 end
 
 __gfx__
@@ -363,3 +417,4 @@ __sfx__
 000100000605008050090500b05000000000000700006000050000500005000060000000001000020000200003000030000300000000000000000000000020000300000000000000000000000000000000000000
 000100000b05008050070500705033000360002e000200001b0003400032000340000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 000100000d0500e0501005010050100501105012050130501405014050160501605018050190501a0501c0501e0502105023050250502b05031050360503f0500d0000f000120001300000000000000000000000
+00050000160502a0502a0502605015000000000000000000000002600026000240002400023000230002300000000000000000000000000000000000000000000000000000000000000000000000000000000000
