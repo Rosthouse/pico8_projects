@@ -9,6 +9,7 @@ __lua__
 #include include/particles.lua
 #include include/table.lua
 #include include/camera.lua
+#include include/math.lua
 
 -- Variables
 ss = peek(0x5f57) -- screen size
@@ -44,14 +45,6 @@ end
 b_c = 5 -- block columns
 b_r = 3 -- block rows
 
-function init_game()
-  local b_w = ss / b_c * 0.75
-
-  setup_blocks(b_c, b_r, b_w, b_w / 3)
-  setup_paddle()
-  setup_ball(ss)
-end
-
 function setup_blocks(col, row, w, h)
   cls(0)
 
@@ -64,27 +57,6 @@ function setup_blocks(col, row, w, h)
       print(i .. ": " .. blocks[i].x .. " " .. blocks[i].y)
     end
   end
-end
-
-function setup_paddle()
-  -- Set up paddle
-  paddle.xs = 20
-  paddle.ys = 5
-  paddle.x = 128 / 2 - paddle.xs / 2
-  paddle.y = 128 - 10 - paddle.ys / 2
-  paddle.w = 24
-  paddle.h = 8
-  paddle.sp = 1
-end
-
-function setup_ball(size)
-  ball.x = paddle.x + 12
-  ball.y = paddle.y - 10
-  ball.r = 2
-  ball.v_x = 1
-  ball.v_y = -0.5
-  ball.col = color(12)
-  ball.sp = 1
 end
 
 -- general functionality
@@ -160,6 +132,40 @@ blk = 33 -- block sprite
 shki = 2 -- shake intensity
 sp_r = 0.9 -- item spawn rate
 
+mode = 0
+
+function init_game()
+  local b_w = ss / b_c * 0.75
+
+  setup_blocks(b_c, b_r, b_w, b_w / 3)
+  setup_paddle()
+  setup_ball(ss)
+  mode = 0
+end
+
+function setup_paddle()
+  -- Set up paddle
+  paddle = {
+    x = 52,
+    y = 112,
+    w = 24,
+    h = 8,
+    sp = 1
+  }
+end
+
+function setup_ball(size)
+  ball = {
+    x = paddle.x + 12,
+    y = paddle.y - 10,
+    r = 2,
+    v_x = 1,
+    v_y = -0.5,
+    col = color(12),
+    sp = 1
+  }
+end
+
 function game_update()
   update_paddle()
   update_powerups()
@@ -167,18 +173,21 @@ function game_update()
   part:update()
 
   local bb = cbox(ball.x, ball.y, ball.r)
-  local pb = rbox(paddle.x, paddle.y, 16, 8)
+  local pb = rbox(paddle.x, paddle.y, paddle.w, paddle.h)
+
+  if btnp(5) then
+    sfx(3)
+    mode = 1
+  end
+
+  if mode == 0 then return end
 
   -- handle collisions
   if coll(bb, pb) then
     ball.v_y = -1
     sfx(0)
     shk_set(shki)
-    if ball.x > paddle.x + paddle.w / 2 then
-      ball.v_x = 1
-    else
-      ball.v_x = -1
-    end
+    ball.v_x = lerp(-1, 1, ilerp(paddle.x, paddle.x + paddle.w, ball.x))
   end
 
   for _, p in pairs(powerups) do
@@ -224,8 +233,13 @@ function update_paddle()
 end
 
 function update_ball()
-  ball.x = ball.x + ball.v_x * ball.sp
-  ball.y = ball.y + ball.v_y * ball.sp
+  if mode == 0 then
+    ball.x = paddle.x + paddle.w / 2
+    ball.y = paddle.y - 5
+  elseif mode == 1 then
+    ball.x = ball.x + ball.v_x * ball.sp
+    ball.y = ball.y + ball.v_y * ball.sp
+  end
 
   if ball.x < 0 then ball.v_x *= -1 end
   if ball.x > ss then ball.v_x *= -1 end
@@ -269,7 +283,7 @@ function game_draw()
   end
   -- Draw player
   local pb = rbox(paddle.x, paddle.y, paddle.w, paddle.h)
-  -- rectfill(pb.x0, pb.y0, pb.x1, pb.y1, 9)
+  rectfill(pb.x0, pb.y0, pb.x1, pb.y1, 9)
   spr(1, paddle.x, paddle.y, 3, 1)
 
   -- Draw ball
