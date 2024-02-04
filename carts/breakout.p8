@@ -2,8 +2,8 @@ pico-8 cartridge // http://www.pico-8.com
 version 41
 __lua__
 
--- Breakout
--- by Rosthouse
+-- breakout+
+-- by rosthouse
 #include include/collision.lua
 #include include/fsm.lua
 #include include/particles.lua
@@ -27,7 +27,7 @@ function _init()
   end
 
   fsm:add("start", start_update, start_draw, start_init)
-  fsm:add("game", game_update, game_draw, init_game)
+  fsm:add("game", game_update, game_draw, game_init)
   fsm:add("score", score_update, score_draw, score_init, score_exit)
   fsm:add("options", options_update, options_draw, options_init)
   fsm:next("start")
@@ -52,7 +52,7 @@ function setup_blocks(col, row, w, h)
     for x = 0, col - 1 do
       local i = x + y * col
       blocks[i] = {
-        x = 25 * x, y = 10 * y, w = 24, h = 8, c = color(i % 14 + 1), a = true
+        x = 25 * x, y = 10 * y, w = 24, h = 8, c = y % 5 + 1, a = true
       }
       print(i .. ": " .. blocks[i].x .. " " .. blocks[i].y)
     end
@@ -132,15 +132,15 @@ blk = 33 -- block sprite
 shki = 2 -- shake intensity
 sp_r = 0.9 -- item spawn rate
 
-mode = 0
+gm = 0 -- game mode
 
-function init_game()
+function game_init()
   local b_w = ss / b_c * 0.75
 
   setup_blocks(b_c, b_r, b_w, b_w / 3)
   setup_paddle()
   setup_ball(ss)
-  mode = 0
+  gm = 0
 end
 
 function setup_paddle()
@@ -161,7 +161,7 @@ function setup_ball(size)
     r = 2,
     v_x = 1,
     v_y = -0.5,
-    col = color(12),
+    c = 13,
     sp = 1
   }
 end
@@ -172,15 +172,22 @@ function game_update()
   update_ball()
   part:update()
 
-  local bb = cbox(ball.x, ball.y, ball.r)
-  local pb = rbox(paddle.x, paddle.y, paddle.w, paddle.h)
-
-  if btnp(5) then
+  if gm == 0 and btnp(5) then
     sfx(3)
-    mode = 1
+    gm = 1
+    if btn(0) then
+      ball.v_x = -1
+    elseif btn(1) then
+      ball.v_x = 1
+    else
+      ball.v_x = 0
+    end
   end
 
-  if mode == 0 then return end
+  if gm == 0 then return end
+
+  local bb = cbox(ball.x, ball.y, ball.r)
+  local pb = rbox(paddle.x, paddle.y, paddle.w, paddle.h)
 
   -- handle collisions
   if coll(bb, pb) then
@@ -233,10 +240,10 @@ function update_paddle()
 end
 
 function update_ball()
-  if mode == 0 then
+  if gm == 0 then
     ball.x = paddle.x + paddle.w / 2
     ball.y = paddle.y - 5
-  elseif mode == 1 then
+  elseif gm == 1 then
     ball.x = ball.x + ball.v_x * ball.sp
     ball.y = ball.y + ball.v_y * ball.sp
   end
@@ -247,7 +254,7 @@ function update_ball()
   if ball.y > ss then fsm:next("score") end
 
   if rnd() > 0.8 then
-    part:spw(ball.x, ball.y, rnd(), ball.sp / 2, 15, 10)
+    part:spw(ball.x, ball.y, rnd(), ball.sp / 2, 15)
   end
 end
 
@@ -263,18 +270,27 @@ function update_powerups()
   end
 end
 
+c_t = {
+  { 14, 2 },
+  { 12, 1 },
+  { 10, 9 },
+  { 11, 3 },
+  { 15, 4 }
+}
+
 function game_draw()
-  cls(0)
+  cls()
   part:draw()
   -- Draw blocks
   for i = 0, #blocks, 1 do
     local b = blocks[i]
     if b.a == true then
-      pal(7, b.c)
+      pal(c_t[1][1], c_t[b.c][1])
+      pal(c_t[1][2], c_t[b.c][2])
       spr(blk, b.x, b.y, 3, 1)
-      pal()
     end
   end
+  -- pal()
 
   for _, p in pairs(powerups) do
     if p.a == true then
@@ -283,13 +299,12 @@ function game_draw()
   end
   -- Draw player
   local pb = rbox(paddle.x, paddle.y, paddle.w, paddle.h)
-  rectfill(pb.x0, pb.y0, pb.x1, pb.y1, 9)
+  -- rectfill(pb.x0, pb.y0, pb.x1, pb.y1, 9)
   spr(1, paddle.x, paddle.y, 3, 1)
 
   -- Draw ball
   local bb = cbox(ball.x, ball.y, ball.r)
-  -- rectfill(bb.x0, bb.y0, bb.x1, bb.y1, 10)
-  circfill(ball.x, ball.y, ball.r, 9)
+  circfill(ball.x, ball.y, ball.r, ball.c)
 
   shake()
 end
@@ -300,23 +315,21 @@ function spawn_powerup(bi)
 end
 
 -- score scene
-function score_init()
-  scr_t = {}
-  scr_i = 0
-  ed = 0
+scr_t = {}
+scr_i = 0
+ed = 0
 
+function score_init()
   for i = 1, 5, 1 do
     add(scr_t, read_score(i))
   end
 
-  if scr > 0 then
-    for i = 1, 5, 1 do
-      if scr > scr_t[i].score then
-        scr_i = i
-        ed = 1
-        insert(scr_t, { name = "aaa", score = scr }, i)
-        return
-      end
+  for i = 1, 5, 1 do
+    if scr > scr_t[i].score then
+      scr_i = i
+      ed = 1
+      insert(scr_t, { name = "aaa", score = scr }, i)
+      return
     end
   end
 end
@@ -339,12 +352,13 @@ end
 
 function score_draw()
   cls()
+  color()
   for i = 1, 5, 1 do
     v = scr_t[i].score
     n = scr_t[i].name
+
     -- check if we are on a line to edit
     if ed == i then
-      n = sub(n, 1, i) .. "\#2" .. sub(n, i + 1, #n)
     end
 
     -- if yes, anotate the current character with the corresponding background
@@ -356,6 +370,7 @@ function score_exit()
   for i = 1, 5, 1 do
     write_score(i, scr_t[i].name, scr_t[i].score)
   end
+  scr = 0
 end
 
 -- options screen
@@ -406,14 +421,14 @@ __gfx__
 00000000007770000008700008077000000000000036666300003630036300366666630036300363003630036300000000000000000000000000000000000000
 00000000077070000008700007707000000000000003333000000300003000033333300003000030000300003000000000000000000000000000000000000000
 00000000070070000007700007007000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000777777777777777777777777000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000777777777777777777777777000000000000000000000003300000030000300003333330000000000000000000000000000000000000000000000000
-00000000777777777777777777777777000000000000000000000036630000363003630036666663000000000000000000000000000000000000000000000000
-00000000777777777777777777777777000000000000000000000363363000363003630003366330000000000000000000000000000000000000000000000000
-00000000777777777777777777777777000000000000000000003630036300363003630000366300000000000000000000000000000000000000000000000000
-00000000777777777777777777777777000000000000000000003630036300363003630000366300000000000000000000000000000000000000000000000000
-00000000777777777777777777777777000000000000000000003630036300363003630000366300000000000000000000000000000000000000000000000000
-00000000777777777777777777777777000000000000000000003630036300363003630000366300000000000000000000000000000000000000000000000000
+00000000677777777777777777777776000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+000000002eeeeeeeeeeeeeeeeeeeeee7000000000000000000000003300000030000300003333330000000000000000000000000000000000000000000000000
+000000002eeeeeeeeeeeeeeeeeeeeee7000000000000000000000036630000363003630036666663000000000000000000000000000000000000000000000000
+000000002eeeeeeeeeeeeeeeeeeeeee7000000000000000000000363363000363003630003366330000000000000000000000000000000000000000000000000
+000000002eeeeeeeeeeeeeeeeeeeeee7000000000000000000003630036300363003630000366300000000000000000000000000000000000000000000000000
+000000002eeeeeeeeeeeeeeeeeeeeee7000000000000000000003630036300363003630000366300000000000000000000000000000000000000000000000000
+000000002eeeeeeeeeeeeeeeeeeeeee7000000000000000000003630036300363003630000366300000000000000000000000000000000000000000000000000
+00000000222222222222222222222226000000000000000000003630036300363003630000366300000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000003630036300363003630000366300000000000000000000000000000000000000000000000000
 000000000000aa000000000000000000000000000000000000003630036300363003630000366300000000000000000000000000000000000000000000000000
 00000000000aa0000000000000000000000000000000000000003630036300363003630000366300000000000000000000000000000000000000000000000000
