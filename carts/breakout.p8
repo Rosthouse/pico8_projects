@@ -104,24 +104,25 @@ end
 function read_score(i)
   return {
     score = dget(i*4),
-    name = chr(
+    name = {
       dget(i*4+1), 
       dget(i*4+2), 
       dget(i*4+3)
-    )
+    }
   }
 end
 
 function write_score(i, n, v)
   dset(i*4, v)
-  dset(i*4+1, ord(n, 1))
-  dset(i*4+2, ord(n, 2))
-  dset(i*4+3, ord(n, 3))
+  dset(i*4+1, n[1])
+  dset(i*4+2, n[2])
+  dset(i*4+3, n[3])
 end
 
 function reset_score()
+  local a = ord("a")
   for i = 1, 5, 1 do
-    write_score(i, "aaa",  (6 - i) * 10)
+    write_score(i, {a, a, a},  (6 - i) * 10)
   end
 end
 
@@ -293,7 +294,7 @@ end
 function score_init()
   scr_t = {}
   scr_i = 0
-  ed=0
+  scr_e = 0
 
   for i=1,5,1 do
     add(scr_t, read_score(i))
@@ -303,43 +304,58 @@ function score_init()
     for i = 1, 5, 1 do
       if scr > scr_t[i].score then
         scr_i = i
-        ed = 1
-        insert(scr_t, {name="aaa",score=scr}, i)
+        scr_e = 1
+        insert(scr_t, {name={97, 97, 97},score=scr}, i)
         return
       end
     end
+    if #scr_t > 5 then
+      deli(scr_t, 6)
+    end
   end
+
 end
 
 function score_update()
-
-  if scr_i == 0 then
+  if scr_e == 0 then
     if btnp(❎) then
       fsm:next("start")
-      return
     end
+    return
   end
-
-  if scr_i > 0 then
+    
+  if scr_e > 0 then
     if btnp(❎) then
-      scr_i -= 1 
+      scr_e = (scr_e + 1) % 4 
     end
-    local s_e = scr_t[scr_i]
+
+    if btnp(⬆️) then
+      scr_t[scr_i].name[scr_e] += 1
+    end
+
   end
 end
 
 function score_draw()
   cls()
+  print( scr_i .. ", " .. scr_e)
   for i = 1, 5, 1 do
-    v=scr_t[i].score
-    n=scr_t[i].name
+    local v=scr_t[i].score
+    local n=scr_t[i].name
     -- check if we are on a line to edit
-    if ed == i then
-      n = sub(n, 1, i) .. "\#2" .. sub(n, i+1, #n)
-    end
+    -- if ed == i then
+    --   n = sub(n, 1, i) .. "\#2" .. sub(n, i+1, #n)
+    -- end
+    local name = ""
+    for j=1,#n,1 do
+      if j == scr_e then
+        name = name .. "\#2" 
+      end
+      name = name .. chr(n[j]) .. "\#0"
 
+    end
     -- if yes, anotate the current character with the corresponding background
-    print(i .. ". " .. n .. ": ".. scr_t[i].score, ss/2 - 24, ss/2 + i * 8 - 32)
+    print(i .. ". " .. name .. ": ".. scr_t[i].score, ss/2 - 24, ss/2 + i * 8 - 32)
   end
 end
 
