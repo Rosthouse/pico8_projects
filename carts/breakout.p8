@@ -321,7 +321,6 @@ function score_init()
   scr_i = 0
   scr_e = 0
 
-function score_init()
   for i = 1, 5, 1 do
     add(scr_t, read_score(i))
   end
@@ -356,7 +355,11 @@ function score_update()
     end
 
     if btnp(⬆️) then
-      scr_t[scr_i].name[scr_e] += 1
+      scr_t[scr_i].name[scr_e] = iwrap(scr_t[scr_i].name[scr_e]+1, 97, 97+123)
+    end
+
+    if btnp(⬆️) then
+      scr_t[scr_i].name[scr_e] = iwrap(scr_t[scr_i].name[scr_e]-1, 97, 97+123)
     end
 
   end
