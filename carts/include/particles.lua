@@ -4,9 +4,9 @@ part={
   p={}
 }
 
-function part:spw(x, y, d, s, t, c)
+function part:spw(x,y,d,s,t,c)
   xd = cos(d)
-  add(self.p,{x=x,y=y,xd=cos(d),yd=sin(d),s=s,t=t,c=c~=nil and c or rnd(1, 15)})
+  add(self.p,{x=x,y=y,xd=cos(d),yd=sin(d),s=s,t=t,c=c})
 end
 
 function part:update()

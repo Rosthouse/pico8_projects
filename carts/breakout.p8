@@ -62,26 +62,26 @@ end
 -- general functionality
 function read_score(i)
   return {
-    score = dget(i*4),
+    score = dget(i * 4),
     name = {
-      dget(i*4+1), 
-      dget(i*4+2), 
-      dget(i*4+3)
+      dget(i * 4 + 1),
+      dget(i * 4 + 2),
+      dget(i * 4 + 3)
     }
   }
 end
 
 function write_score(i, n, v)
-  dset(i*4, v)
-  dset(i*4+1, n[1])
-  dset(i*4+2, n[2])
-  dset(i*4+3, n[3])
+  dset(i * 4, v)
+  dset(i * 4 + 1, n[1])
+  dset(i * 4 + 2, n[2])
+  dset(i * 4 + 3, n[3])
 end
 
 function reset_score()
   local a = ord("a")
   for i = 1, 5, 1 do
-    write_score(i, {a, a, a},  (6 - i) * 10)
+    write_score(i, { a, a, a }, 6 - i)
   end
 end
 
@@ -162,7 +162,7 @@ function setup_ball(size)
     r = 2,
     v_x = 1,
     v_y = -0.5,
-    c = 13,
+    c = 10,
     sp = 1
   }
 end
@@ -255,7 +255,7 @@ function update_ball()
   if ball.y > ss then fsm:next("score") end
 
   if rnd() > 0.8 then
-    part:spw(ball.x, ball.y, rnd(), ball.sp / 2, 15)
+    part:spw(ball.x, ball.y, rnd(), ball.sp / 2, 7, 9)
   end
 end
 
@@ -272,6 +272,7 @@ function update_powerups()
 end
 
 c_t = {
+  -- color table, used for swaping palete
   { 14, 2 },
   { 12, 1 },
   { 10, 9 },
@@ -281,7 +282,12 @@ c_t = {
 
 function game_draw()
   cls()
+  print(scr, 0, 0, 10)
   part:draw()
+  -- Draw ball
+  local bb = cbox(ball.x, ball.y, ball.r)
+  circfill(ball.x, ball.y, ball.r, ball.c)
+
   -- Draw blocks
   for i = 0, #blocks, 1 do
     local b = blocks[i]
@@ -291,7 +297,7 @@ function game_draw()
       spr(blk, b.x, b.y, 3, 1)
     end
   end
-  -- pal()
+  pal()
 
   for _, p in pairs(powerups) do
     if p.a == true then
@@ -300,12 +306,7 @@ function game_draw()
   end
   -- Draw player
   local pb = rbox(paddle.x, paddle.y, paddle.w, paddle.h)
-  -- rectfill(pb.x0, pb.y0, pb.x1, pb.y1, 9)
   spr(1, paddle.x, paddle.y, 3, 1)
-
-  -- Draw ball
-  local bb = cbox(ball.x, ball.y, ball.r)
-  circfill(ball.x, ball.y, ball.r, ball.c)
 
   shake()
 end
@@ -317,6 +318,7 @@ end
 
 -- score scene
 function score_init()
+  pal()
   scr_t = {}
   scr_i = 0
   scr_e = 0
@@ -330,7 +332,7 @@ function score_init()
       if scr > scr_t[i].score then
         scr_i = i
         scr_e = 1
-        insert(scr_t, {name={97, 97, 97},score=scr}, i)
+        insert(scr_t, { name = { 97, 97, 97 }, score = scr }, i)
         return
       end
     end
@@ -338,7 +340,6 @@ function score_init()
       deli(scr_t, 6)
     end
   end
-
 end
 
 function score_update()
@@ -348,43 +349,42 @@ function score_update()
     end
     return
   end
-    
+
   if scr_e > 0 then
     if btnp(❎) then
-      scr_e = (scr_e + 1) % 4 
+      scr_e = (scr_e + 1) % 4
     end
 
     if btnp(⬆️) then
-      scr_t[scr_i].name[scr_e] = iwrap(scr_t[scr_i].name[scr_e]+1, 97, 97+123)
+      scr_t[scr_i].name[scr_e] = iwrap(scr_t[scr_i].name[scr_e] + 1, 97, 123)
     end
 
-    if btnp(⬆️) then
-      scr_t[scr_i].name[scr_e] = iwrap(scr_t[scr_i].name[scr_e]-1, 97, 97+123)
+    if btnp(⬇️) then
+      scr_t[scr_i].name[scr_e] = iwrap(scr_t[scr_i].name[scr_e] - 1, 97, 123)
     end
-
   end
 end
 
 function score_draw()
   cls()
-  print( scr_i .. ", " .. scr_e)
+  print(scr_i .. ", " .. scr_e)
   for i = 1, 5, 1 do
-    local v=scr_t[i].score
-    local n=scr_t[i].name
-    -- check if we are on a line to edit
-    -- if ed == i then
-    --   n = sub(n, 1, i) .. "\#2" .. sub(n, i+1, #n)
-    -- end
+    local v = scr_t[i].score
+    local n = scr_t[i].name
+    
     local name = ""
-    for j=1,#n,1 do
-      if j == scr_e then
-        name = name .. "\#2" 
+    if scr_i == i then
+      for j = 1, #n, 1 do
+        if j == scr_e then
+          name = name .. "\#2"
+        end
+        name = name .. chr(n[j]) .. "\#0"
       end
-      name = name .. chr(n[j]) .. "\#0"
-
+    else
+      name = chr(n[1],n[2],n[3])
     end
     -- if yes, anotate the current character with the corresponding background
-    print(i .. ". " .. name .. ": ".. scr_t[i].score, ss/2 - 24, ss/2 + i * 8 - 32)
+    print(i .. ". " .. name .. ": " .. scr_t[i].score * 100, ss / 2 - 24, ss / 2 + i * 8 - 32)
   end
 end
 
