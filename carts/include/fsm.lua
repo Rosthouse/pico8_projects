@@ -7,12 +7,11 @@ fsm = {
 function fsm:add(key, update, draw, init, exit)
     assert(update ~= nil, "No update update given")
     assert(draw ~= nil, "No draw function given")
-    local s = { }
+    local s = {}
     s.update = update
     s.draw = draw
     if init ~= nil then s.init = init else s.init = empty end
     if exit ~= nil then s.exit = exit else s.exit = empty end
-
     self.s[key] = s
 end
 
