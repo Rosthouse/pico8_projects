@@ -45,20 +45,6 @@ end
 b_c = 5 -- block columns
 b_r = 3 -- block rows
 
-function setup_blocks(col, row, w, h)
-  cls(0)
-
-  for y = 0, row - 1 do
-    for x = 0, col - 1 do
-      local i = x + y * col
-      blocks[i] = {
-        x = 25 * x, y = 10 * y, w = 24, h = 8, c = y % 5 + 1, a = true
-      }
-      print(i .. ": " .. blocks[i].x .. " " .. blocks[i].y)
-    end
-  end
-end
-
 -- general functionality
 function read_score(i)
   return {
@@ -134,14 +120,33 @@ shki = 2 -- shake intensity
 sp_r = 0.9 -- item spawn rate
 
 gm = 0 -- game mode
+ab = 0
 
 function game_init()
   local b_w = ss / b_c * 0.75
 
-  setup_blocks(b_c, b_r, b_w, b_w / 3)
+  setup_blocks(b_c, b_r)
   setup_paddle()
   setup_ball(ss)
   gm = 0
+end
+
+function setup_blocks(col, row)
+  cls(0)
+  local b_w = ss / b_c * 0.75
+  local w = b_w
+  local h = b_w / 3
+  for y = 0, row - 1 do
+    for x = 0, col - 1 do
+      local i = x + y * col
+      blocks[i] = {
+        x = 25 * x, y = 10 * y, w = 24, h = 8, c = y % 5 + 1, a = true
+      }
+      print(i .. ": " .. blocks[i].x .. " " .. blocks[i].y)
+    end
+  end
+
+  ab = col * row
 end
 
 function setup_paddle()
@@ -218,6 +223,7 @@ function game_update()
         shk_set(shki)
         ball.v_y *= -1
         b.a = false
+        ab -= 1
         ball.sp += 0.1
         scr += 1
         sfx(1)
@@ -228,6 +234,9 @@ function game_update()
           sp_r -= 0.1
         end
       end
+    end
+    if ab <= 0 then
+      setup_blocks(b_c, b_r)
     end
   end
 end
@@ -255,7 +264,7 @@ function update_ball()
   if ball.y > ss then fsm:next("score") end
 
   if rnd() > 0.8 then
-    part:spw(ball.x, ball.y, rnd(), ball.sp / 2, 7, 9)
+    part:spw(ball.x, ball.y, rnd(), ball.sp / 2, 7, 9, 3, 1)
   end
 end
 
@@ -371,7 +380,7 @@ function score_draw()
   for i = 1, 5, 1 do
     local v = scr_t[i].score
     local n = scr_t[i].name
-    
+
     local name = ""
     if scr_i == i then
       for j = 1, #n, 1 do
@@ -381,7 +390,7 @@ function score_draw()
         name = name .. chr(n[j]) .. "\#0"
       end
     else
-      name = chr(n[1],n[2],n[3])
+      name = chr(n[1], n[2], n[3])
     end
     -- if yes, anotate the current character with the corresponding background
     print(i .. ". " .. name .. ": " .. scr_t[i].score * 100, ss / 2 - 24, ss / 2 + i * 8 - 32)
