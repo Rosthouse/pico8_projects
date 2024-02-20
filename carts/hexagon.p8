@@ -40,7 +40,21 @@ ast_spd = 0.01
 ast_tbl = {}
 
 function _update()
+  -- Run sound
   sfx(0)
+  hxg_update()
+  prl_update()
+  lsr_update()
+  ast_update()
+  part_update()
+end
+
+function hxg_update()
+  lr += spd
+  if lr > 1 then lr = 0 end
+end
+
+function prl_update()
   if btnp(⬅️) then
     plr_pos = iwrap(plr_pos + 1, 1, 7)
   end
@@ -53,23 +67,27 @@ function _update()
     sfx(2)
     add(lsr_tbl, { p = plr_pos, r = 1 })
   end
+end
 
+function lsr_update()
   for _, l in pairs(lsr_tbl) do
     l.r -= .05
     if l.r <= 0 then
       del(lsr_tbl, l)
     end
   end
+end
 
+function ast_update()
   if rnd() > ast_spw then
     add(ast_tbl, { d = flr(rnd(7)), r = 0, p = flr(rnd(3)) })
   end
   for _, a in pairs(ast_tbl) do
     a.r += ast_spd
   end
+end
 
-  lr += spd
-  if lr > 1 then lr = 0 end
+function part_update()
   part:update()
 
   if rnd() > 0.75 then
@@ -83,7 +101,15 @@ function _draw()
   cls()
   part:draw()
 
-  -- draw hexagons
+  hxg_draw()
+  lsr_draw()
+  ast_draw()
+  plr_draw()
+  ui_draw()
+  -- draw ui
+end
+
+function hxg_draw()
   dhex(ih, cx, cy)
   dhex(oh, cx, cy)
 
@@ -94,23 +120,18 @@ function _draw()
     local x1, y1 = poc(1, i * d60)
     line(cx + x1 * oh, cy + y1 * oh, cx + x1 * ih, cy + y1 * ih, i)
   end
+end
 
-  -- draw lasers
+function lsr_draw()
   for _, l in pairs(lsr_tbl) do
     local lx1, ly1 = poc(lerp(0, oh, l.r), l.p / 6 - 1 / 12)
     circfill(cx + lx1, cy + ly1, lerp(0, 3, l.r), 10)
   end
+end
 
-  -- draw asteroids
+function ast_draw()
   for _, a in pairs(ast_tbl) do
   end
-
-  -- draw player
-  dplr(plr_pos)
-
-  -- draw ui
-  draw_ui(0, 104, 16, 3, 12)
-  print("draw fancy ui here", 10, 114)
 end
 
 function dhex(f, x, y)
@@ -122,11 +143,16 @@ function dhex(f, x, y)
   end
 end
 
-function dplr(plr_pos)
+function plr_draw()
   spt = spr_tbl[plr_pos]
   local x, y = poc(plr_r, (plr_pos - 1) * d60 + d30)
   print(x .. ", " .. y)
   spr(spt.b, cx + x - 8, cy + y - 8, 2, 2, spt.x, spt.y)
+end
+
+function ui_draw()
+  draw_ui(0, 104, 16, 3, 12)
+  print("draw fancy ui here", 10, 114)
 end
 
 function dspr(s, r, a, fx, fy)
