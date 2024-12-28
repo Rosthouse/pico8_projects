@@ -6,6 +6,7 @@ __lua__
 -- by rosthouse
 #include include/math.lua
 #include include/particles.lua
+#include include/collision.lua
 
 -- player
 plr_pos = 1
@@ -75,6 +76,8 @@ function lsr_update()
     if l.r <= 0 then
       del(lsr_tbl, l)
     end
+
+    if col
   end
 end
 
